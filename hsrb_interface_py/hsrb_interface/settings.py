@@ -148,6 +148,13 @@ _HSRB_SETTINGS = """
             "releasing_topic": "/attached_object_publisher/releasing_object_name",
             "attached_info_topic": "/attached_object_publisher/attached_object"
         }
+    },
+    "power_supply": {
+        "battery": {
+            "class": ["battery", "Battery"],
+            "topic": "/battery_state",
+            "timeout": 2.0
+        }
     }
 }
 """
