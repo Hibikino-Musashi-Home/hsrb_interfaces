@@ -42,6 +42,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
 import tf2_ros
+from typing import Any, Dict, Optional, Tuple, Union
 
 from . import exceptions
 from . import settings
@@ -134,7 +135,7 @@ def enable_interactive():
     _interactive = True
 
 
-class _ConnectionManager(Node):
+class _ConnectionManager:
     """This class manage connection with a robot.
 
     Basically, only 1 instance should be created at 1 process.
@@ -144,27 +145,53 @@ class _ConnectionManager(Node):
 
     Args:
         use_tf_client: Use action based query for tf.(bool)
+        node (Optional[Union[str, Node]]): Node name or instance. Default is None.
+            - None: Create a new node named ``hma2_hsr_interface_py``.
+            - str:  Create a new node using the given name.
+            - Node: Use the given node instance.
 
     """
 
-    def __init__(self, use_tf_client=False):
+    def __init__(self, use_tf_client=False, node: Optional[Union[str, Node]] = None):
         """See class docstring."""
         context = rclpy.utilities.get_default_context()
         if not context.ok():
             rclpy.init()
-        super().__init__('hsrb_interface_py')
+
+        if node is None:
+            self._node: Node = rclpy.create_node('hsrb_interface_py')
+            self._external_node: bool = False
+        elif isinstance(node, str):
+            self._node = rclpy.create_node(node)
+            self._external_node = False
+        elif isinstance(node, Node):
+            self._node = node
+            self._external_node = True
+        else:
+            raise TypeError('node must be None, str, or rclpy.node.Node')
+
         if use_tf_client:
-            self._tf2_buffer = tf2_ros.BufferClient('/tf2_buffer_server')
+            self._tf2_buffer: Union[tf2_ros.Buffer, tf2_ros.BufferClient] = tf2_ros.BufferClient('/tf2_buffer_server')
         else:
             qos_profile = QoSProfile(depth=1)
             self._tf2_buffer = tf2_ros.Buffer()
-            self._tf2_listener = tf2_ros.TransformListener(
+            self._tf2_listener: Optional[tf2_ros.TransformListener] = tf2_ros.TransformListener(
                 self._tf2_buffer, self, qos=qos_profile)
-        self._registry = {}
+
+        self._registry: Dict[Tuple[str, ItemTypes], Any] = {}
+
+    def __getattr__(self, name):
+        return getattr(self._node, name)
 
     def __del__(self):
         self._tf2_listener = None
         self._tf2_buffer = None
+
+    def destroy(self) -> None:
+        """Clean up resources.
+        """
+        if not self._external_node:
+            self._node.destroy_node()
 
     @property
     def tf2_buffer(self):
@@ -292,8 +319,9 @@ class Robot(object):
     def __init__(self, *args, **kwargs):
         """See class docstring."""
         use_tf_client = kwargs.get('use_tf_client', False)
+        node = kwargs.get('node', None)
         if Robot._connection is None:
-            self._conn = _ConnectionManager(use_tf_client=use_tf_client)
+            self._conn = _ConnectionManager(use_tf_client=use_tf_client, node=node)
             Robot._connection = self._conn
         else:
             self._conn = Robot._connection
@@ -308,7 +336,7 @@ class Robot(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """A part of ContextManager interface."""
-        self._conn.destroy_node()
+        self._conn.destroy()
         self._conn = None
         Robot._connection = None
 
