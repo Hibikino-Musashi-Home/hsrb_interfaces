@@ -293,8 +293,8 @@ class Gripper(robot.Item):
 
         Returns:
             int: The status code of the action goal, corresponding to one of
-                `action_msgs.msg.GoalStatus` constants (e.g. STATUS_SUCCEEDED,
-                STATUS_ABORTED, STATUS_CANCELED, STATUS_EXECUTING, etc.).
+                `action_msgs.msg.GoalStatus` constants (e.g. ``STATUS_SUCCEEDED``,
+                ``STATUS_ABORTED``, ``STATUS_CANCELED``, STATUS_EXECUTING``, etc.).
         """
         goal_handle = self._send_goal_future.result()
         get_result_future = goal_handle.get_result_async()
