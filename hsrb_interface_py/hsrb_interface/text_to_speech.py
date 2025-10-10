@@ -83,7 +83,7 @@ class TextToSpeech(robot.Item):
             raise exceptions.InvalidLanguageError(msg)
         self._language = value
 
-    def say(self, text, queue=False, sync=True) -> bool:
+    def say(self, text: str, queue=False, sync=True) -> bool:
         """Speak a given text
 
         Args:
