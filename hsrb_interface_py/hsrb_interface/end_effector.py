@@ -24,6 +24,8 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 # DAMAGE.
 # vim: fileencoding=utf-8
+#
+# Maintainer: Tomoaki Fujino (Hibikino-Musashi@Home)
 """This module contains classes to control end-effector."""
 
 from __future__ import absolute_import
@@ -127,7 +129,7 @@ class Gripper(robot.Item):
         # Variable to remember the last asynchronous action. Initial value is None
         self._current_client = None
 
-    def command(self, open_angle, motion_time=1.0, sync=True):
+    def command(self, open_angle: float, motion_time=1.0, sync=True):
         """Command open a gripper
 
         Args:
@@ -138,7 +140,7 @@ class Gripper(robot.Item):
         Returns:
             None
 
-        Example:
+        Examples:
 
             .. sourcecode:: python
 
@@ -157,16 +159,16 @@ class Gripper(robot.Item):
         if sync:
             self._wait_controller(msg="Failed to follow commanded trajectory")
 
-    def get_distance(self):
+    def get_distance(self) -> float:
         """Command get gripper finger tip distance.
 
         Returns:
-            double: Distance between gripper finger tips [m]
+            float: Distance between gripper finger tips [m]
         """
         self._fingertip_distance_sub.wait_for_message()
         return self._fingertip_distance_sub.data.data
 
-    def set_distance(self, distance, control_time=3.0, sync=True):
+    def set_distance(self, distance: float, control_time=3.0, sync=True):
         """Command set gripper finger tip distance.
 
         Args:
@@ -180,7 +182,7 @@ class Gripper(robot.Item):
         if sync:
             self._wait_controller(msg="Failed to set distance", wait_time_max=control_time)
 
-    def set_distance_trajectory(self, distance, motion_time=1.0, sync=True):
+    def set_distance_trajectory(self, distance: float, motion_time=1.0, sync=True):
         """Command set gripper finger tip distance trajectory.
 
         Args:
@@ -205,12 +207,12 @@ class Gripper(robot.Item):
             if sync:
                 self._wait_controller(msg="Failed to follow distance trajectory")
 
-    def grasp(self, effort):
+    def grasp(self, effort: float):
         """Command a gripper to execute grasping move.
 
         Args:
             effort (float): Force applied to grasping [Nm]
-                            The range is -1[Nm] < effort < 0[Nm]
+                            The range is -1.0 [Nm] < effort < 0.0 [Nm]
 
         Returns:
             None
@@ -226,7 +228,7 @@ class Gripper(robot.Item):
         else:
             self.apply_force(-effort / _HAND_MOMENT_ARM_LENGTH)
 
-    def apply_force(self, effort, delicate=False, sync=True):
+    def apply_force(self, effort: float, delicate=False, sync=True):
         """Command a gripper to execute applying force.
 
         Args:
@@ -286,8 +288,14 @@ class Gripper(robot.Item):
                 self.cancel_goal()
         self.cancel_goal()
 
-    def get_state(self):
-        """Get a status of the action client"""
+    def get_state(self) -> int:
+        """Get a status of the action client
+
+        Returns:
+            int: The status code of the action goal, corresponding to one of
+                `action_msgs.msg.GoalStatus` constants (e.g. ``STATUS_SUCCEEDED``,
+                ``STATUS_ABORTED``, ``STATUS_CANCELED``, STATUS_EXECUTING``, etc.).
+        """
         goal_handle = self._send_goal_future.result()
         get_result_future = goal_handle.get_result_async()
         rclpy.spin_until_future_complete(self._node, get_result_future, timeout_sec=0.1)
@@ -297,7 +305,7 @@ class Gripper(robot.Item):
         else:
             return res.status
 
-    def is_moving(self):
+    def is_moving(self) -> bool:
         """Get the state as if the robot is moving.
 
         Returns:
@@ -305,7 +313,7 @@ class Gripper(robot.Item):
         """
         return self._check_state(action_msgs.GoalStatus.STATUS_EXECUTING)
 
-    def is_succeeded(self):
+    def is_succeeded(self) -> bool:
         """Get the state as if the robot moving was succeeded.
 
         Returns:
@@ -350,7 +358,7 @@ class Suction(object):
         timeout = self._setting.get('timeout', None)
         self._sub.wait_for_message(timeout)
 
-    def command(self, command):
+    def command(self, command: bool):
         """Command on/off to a suction-nozzle.
 
         Args:
@@ -367,7 +375,7 @@ class Suction(object):
         self._pub.publish(msg)
 
     @property
-    def pressure_sensor(self):
+    def pressure_sensor(self) -> bool:
         """Get a sensor value (On/Off) of a suction-nozzle sensor.
 
         Returns:

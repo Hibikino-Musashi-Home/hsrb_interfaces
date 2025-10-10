@@ -24,6 +24,8 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 # DAMAGE.
 # vim: fileencoding=utf-8
+#
+# Maintainer: Tomoaki Fujino (Hibikino-Musashi@Home)
 """Collision checking interface."""
 
 
@@ -32,8 +34,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from typing import Optional
 import os
-import time
 
 from geometry_msgs.msg import Point
 from hsrb_interface import geometry
@@ -177,7 +179,7 @@ class CollisionWorld(robot.Item):
                 return True
             elif (self._node.get_clock().now() - start) > rclpy.duration.Duration(seconds=timeout):
                 return False
-            time.sleep(0.1)
+            self._node.get_clock().sleep_for(rclpy.duration.Duration(seconds=0.1))
 
     def _wait_object_id_attached(self, id, timeout=1.0):
         start = self._node.get_clock().now()
@@ -187,7 +189,7 @@ class CollisionWorld(robot.Item):
                 return True
             elif (self._node.get_clock().now() - start) > rclpy.duration.Duration(seconds=timeout):
                 return False
-            time.sleep(0.1)
+            self._node.get_clock().sleep_for(rclpy.duration.Duration(seconds=0.1))
 
     def _wait_object_id_released(self, id, timeout=1.0):
         start = self._node.get_clock().now()
@@ -197,7 +199,7 @@ class CollisionWorld(robot.Item):
                 return True
             elif (self._node.get_clock().now() - start) > rclpy.duration.Duration(seconds=timeout):
                 return False
-            time.sleep(0.1)
+            self._node.get_clock().sleep_for(rclpy.duration.Duration(seconds=0.1))
 
     def _wait_object_id_released_all(self, timeout=1.0):
         start = self._node.get_clock().now()
@@ -207,7 +209,7 @@ class CollisionWorld(robot.Item):
                 return True
             elif (self._node.get_clock().now() - start) > rclpy.duration.Duration(seconds=timeout):
                 return False
-            time.sleep(0.1)
+            self._node.get_clock().sleep_for(rclpy.duration.Duration(seconds=0.1))
 
     def _add_object(self, obj, pose, name, frame_id, timeout):
         object = self._create_collision_object(obj, pose, name, frame_id)
@@ -249,7 +251,7 @@ class CollisionWorld(robot.Item):
         """List (AttachedCollisionObject): A latest List of a attaced objects."""
         return self._attach_info_sub.data.attached_collision_objects
 
-    def snapshot(self, ref_frame_id=None):
+    def snapshot(self, ref_frame_id=None) -> PlanningSceneWorld:
         """Get a snapshot of collision space from present environment.
 
         Args:
@@ -257,7 +259,7 @@ class CollisionWorld(robot.Item):
                 This parameter overrides ref_frame_id attribute.
 
         Returns:
-            tmc_manipulation_msgs.msg.CollisionEnvironment:
+            moveit_msgs.msg.PlanningSceneWorld:
                 A snapshot of collision space.
         """
         if ref_frame_id is None:
@@ -287,7 +289,7 @@ class CollisionWorld(robot.Item):
         return self._trans_env_sub.data
 
     def add_box(self, x=0.1, y=0.1, z=0.1, pose=geometry.pose(),
-                frame_id='map', name='box', timeout=1.0):
+                frame_id='map', name='box', timeout=1.0) -> Optional[str]:
         """Add a box object to the collision space.
 
         Args:
@@ -297,11 +299,11 @@ class CollisionWorld(robot.Item):
             pose (Tuple[Vector3, Quaternion] or List of Tuple[Vector3, Quaternion]):
                 A pose/poses of a new object from the frame ``frame_id``
             frame_id (str): A reference frame of a new object
-            name (str): A name of a new object
+            name (Optional[str]): A name of a new object
             timeout (float): Wait known object list for this value [sec]
 
         Returns:
-            Tuple[int, str]: ID and name of an added object.
+            Optional[str]: A name of an added object.
         """
         # Create CollisionObject
         shape = SolidPrimitive()
@@ -311,7 +313,8 @@ class CollisionWorld(robot.Item):
         return self._add_object(shape, pose, name, frame_id, timeout)
 
     def add_attached_box(self, x=0.1, y=0.1, z=0.1, pose=geometry.pose(),
-                         frame_id='hand_palm_link', name='box', timeout=1.0):
+                         frame_id='hand_palm_link', name='box', timeout=1.0,
+                         ) -> Optional[str]:
         """Add a box object to the collision space.
 
         Args:
@@ -321,11 +324,11 @@ class CollisionWorld(robot.Item):
             pose (Tuple[Vector3, Quaternion] or List of Tuple[Vector3, Quaternion]):
                 A pose/poses of a new object from the frame ``frame_id``
             frame_id (str): A reference end effector frame of a new object
-            name (str): A name of a new object
+            name (Optional[str]): A name of a new object
             timeout (float): Wait known object list for this value [sec]
 
         Returns:
-            name (str): A name of an added object.
+            Optional[str]: A name of an added object.
 
         Raises:
             ValueError: frame_id is not end effector frame.
@@ -340,7 +343,8 @@ class CollisionWorld(robot.Item):
         return self._add_attached_object(shape, pose, name, frame_id, timeout)
 
     def add_sphere(self, radius=0.1, pose=geometry.pose(),
-                   frame_id='map', name='sphere', timeout=1.0):
+                   frame_id='map', name='sphere', timeout=1.0,
+                   ) -> Optional[str]:
         """Add a sphere object to the collision space.
 
         Args:
@@ -348,11 +352,11 @@ class CollisionWorld(robot.Item):
             pose (Tuple[Vector3, Quaternion] or List of Tuple[Vector3, Quaternion]):
                 A pose/poses of a new object from the frame ``frame_id``
             frame_id (str): A reference frame of a new object
-            name (str): A name of a new object
+            name (Optional[str]): A name of a new object
             timeout (float): Wait known object list for this value [sec]
 
         Returns:
-            Tuple[int, str]: ID and name of an added object.
+            Optional[str]: A name of an added object.
         """
         shape = SolidPrimitive()
         shape.type = SolidPrimitive.SPHERE
@@ -361,7 +365,8 @@ class CollisionWorld(robot.Item):
         return self._add_object(shape, pose, name, frame_id, timeout)
 
     def add_attached_sphere(self, radius=0.1, pose=geometry.pose(),
-                            frame_id='hand_palm_link', name='sphere', timeout=1.0):
+                            frame_id='hand_palm_link', name='sphere', timeout=1.0,
+                            ) -> Optional[str]:
         """Add a sphere object to the collision space.
 
         Args:
@@ -373,7 +378,7 @@ class CollisionWorld(robot.Item):
             timeout (float): Wait known object list for this value [sec]
 
         Returns:
-            name (str): A name of an added object.
+            Optional[str]: A name of an added object.
 
         Raises:
             ValueError: frame_id is not end effector frame.
@@ -388,7 +393,7 @@ class CollisionWorld(robot.Item):
         return self._add_attached_object(shape, pose, name, frame_id, timeout)
 
     def add_cylinder(self, radius=0.1, length=0.1, pose=geometry.pose(),
-                     frame_id='map', name='cylinder', timeout=1.0):
+                     frame_id='map', name='cylinder', timeout=1.0) -> Optional[str]:
         """Add a cylinder object to the collision space.
 
         Args:
@@ -401,7 +406,7 @@ class CollisionWorld(robot.Item):
             timeout (float): Wait known object list for this value [sec]
 
         Returns:
-            Tuple[int, str]: ID and name of an added object.
+            Optional[str]: A name of an added object.
         """
         # Create CollisionObject
         shape = SolidPrimitive()
@@ -411,7 +416,8 @@ class CollisionWorld(robot.Item):
         return self._add_object(shape, pose, name, frame_id, timeout)
 
     def add_attached_cylinder(self, radius=0.1, length=0.1, pose=geometry.pose(),
-                              frame_id='hand_palm_link', name='cylinder', timeout=1.0):
+                              frame_id='hand_palm_link', name='cylinder', timeout=1.0,
+                              ) -> Optional[str]:
         """Add a cylinder object to the collision space.
 
         Args:
@@ -424,7 +430,7 @@ class CollisionWorld(robot.Item):
             timeout (float): Wait known object list for this value [sec]
 
         Returns:
-            name (str): A name of an added object.
+            Optional[str]: A name of an added object.
 
         Raises:
             ValueError: frame_id is not end effector frame.
@@ -438,7 +444,8 @@ class CollisionWorld(robot.Item):
 
         return self._add_attached_object(shape, pose, name, frame_id, timeout)
 
-    def add_mesh(self, filename, pose=geometry.pose(), frame_id='map', name='mesh', timeout=1.0):
+    def add_mesh(self, filename, pose=geometry.pose(), frame_id='map', name='mesh', timeout=1.0,
+                 ) -> Optional[str]:
         """Add a mesh object to the collision space.
 
         Args:
@@ -454,7 +461,7 @@ class CollisionWorld(robot.Item):
             timeout (float): Wait known object list for this value [sec]
 
         Returns:
-            name (str): A name of an added object.
+            Optional[str]: A name of an added object.
 
         Raises:
             ValueError: A file does not exist.
@@ -464,7 +471,8 @@ class CollisionWorld(robot.Item):
         return self._add_object(mesh_obj, pose, name, frame_id, timeout)
 
     def add_attached_mesh(self, filename, pose=geometry.pose(),
-                          frame_id='hand_palm_link', name='mesh', timeout=1.0):
+                          frame_id='hand_palm_link', name='mesh', timeout=1.0,
+                          ) -> Optional[str]:
         """Add a mesh object to the collision space.
 
         Args:
@@ -480,7 +488,7 @@ class CollisionWorld(robot.Item):
             timeout (float): Wait known object list for this value [sec]
 
         Returns:
-            name (str): A name of an added object.
+            Optional[str]: A name of an added object.
 
         Raises:
             ValueError: A file does not exist.
@@ -493,15 +501,15 @@ class CollisionWorld(robot.Item):
 
         return self._add_attached_object(mesh_obj, pose, name, frame_id, timeout)
 
-    def attach(self, object_id, timeout=1.0):
+    def attach(self, object_id: str, timeout=1.0) -> Optional[str]:
         """Attach a specified object from the existing object.
 
         Args:
-            object_id (string): A known object ID
+            object_id (str): A known object ID
             timeout (float): Wait attached object list for this value [sec]
 
         Returns:
-            name (str): A name of an attached object.
+            Optional[str]: A name of an attached object.
 
         Raises:
             ValueError: object_id does not exist.
@@ -521,15 +529,15 @@ class CollisionWorld(robot.Item):
                 else:
                     return None
 
-    def release(self, object_id, timeout=1.0):
+    def release(self, object_id: str, timeout=1.0) -> bool:
         """Release a specified object from the attached object.
 
         Args:
-            object_id (string): A known object ID
+            object_id (str): A known object ID
             timeout (float): Wait attached object list for this value [sec]
 
         Returns:
-            result (bool): Result of release process.
+            bool: Result of release process.
         """
         object_info = String()
         object_info.data = object_id
@@ -538,14 +546,14 @@ class CollisionWorld(robot.Item):
         # Wait until it is reflected
         return self._wait_object_id_released(object_id, timeout)
 
-    def release_all(self, timeout=1.0):
+    def release_all(self, timeout=1.0) -> bool:
         """Release a specified object from the attached object.
 
         Args:
             timeout (float): Wait attached object list for this value [sec]
 
         Returns:
-            result (bool): Result of release process.
+            bool: Result of release process.
         """
         attached_object = AttachedCollisionObject()
         attached_object.object = CollisionObject()
@@ -556,11 +564,11 @@ class CollisionWorld(robot.Item):
         # Wait until it is reflected
         return self._wait_object_id_released_all(timeout)
 
-    def remove(self, object_id, timeout=1.0):
+    def remove(self, object_id: str, timeout=1.0):
         """Remove a specified object from the collision space.
 
         Args:
-            object_id (string): A known object ID
+            object_id (str): A known object ID
             timeout (float): Wait attached object list for this value [sec]
 
         Returns:
