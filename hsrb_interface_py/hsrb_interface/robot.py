@@ -152,7 +152,16 @@ class _ConnectionManager:
 
     """
 
-    def __init__(self, use_tf_client=False, node: Optional[Union[str, Node]] = None):
+    def __init__(
+        self,
+        use_tf_client=False,
+        node: Optional[Union[str, Node]] = None,
+        tf2_buffer: Optional[tf2_ros.Buffer] = None,
+        tf2_cache_time: Optional[float] = None,
+        tf2_spin_thread: bool = False,
+        tf2_qos: Optional[Union[QoSProfile, int]] = QoSProfile(depth=1),
+        tf2_static_qos: Optional[Union[QoSProfile, int]] = None,
+    ):
         """See class docstring."""
         context = rclpy.utilities.get_default_context()
         if not context.ok():
@@ -173,10 +182,22 @@ class _ConnectionManager:
         if use_tf_client:
             self._tf2_buffer: Union[tf2_ros.Buffer, tf2_ros.BufferClient] = tf2_ros.BufferClient('/tf2_buffer_server')
         else:
-            qos_profile = QoSProfile(depth=1)
-            self._tf2_buffer = tf2_ros.Buffer()
-            self._tf2_listener: Optional[tf2_ros.TransformListener] = tf2_ros.TransformListener(
-                self._tf2_buffer, self, qos=qos_profile)
+            if tf2_buffer is not None:
+                self._tf2_buffer = tf2_buffer
+                self._tf2_listener = None
+            else:
+                cache_time = rclpy.duration.Duration(seconds=tf2_cache_time) if tf2_cache_time is not None else None
+                self._tf2_buffer = tf2_ros.Buffer(
+                    cache_time=cache_time
+                )
+                self._tf2_listener: Optional[tf2_ros.TransformListener] = \
+                    tf2_ros.TransformListener(
+                    buffer=self._tf2_buffer,
+                    node=self._node,
+                    spin_thread=tf2_spin_thread,
+                    qos=tf2_qos,
+                    static_qos=tf2_static_qos,
+                )
 
         self._registry: Dict[Tuple[str, ItemTypes], Any] = {}
 
@@ -320,8 +341,22 @@ class Robot(object):
         """See class docstring."""
         use_tf_client = kwargs.get('use_tf_client', False)
         node = kwargs.get('node', None)
+        tf2_buffer = kwargs.get('tf2_buffer', None)
+        tf2_cache_time = kwargs.get('tf2_cache_time', None)
+        tf2_spin_thread = kwargs.get('tf2_spin_thread', False)
+        tf2_qos = kwargs.get('tf2_qos', QoSProfile(depth=1))
+        tf2_static_qos = kwargs.get('tf2_static_qos', None)
+
         if Robot._connection is None:
-            self._conn = _ConnectionManager(use_tf_client=use_tf_client, node=node)
+            self._conn = _ConnectionManager(
+                use_tf_client=use_tf_client,
+                node=node,
+                tf2_buffer=tf2_buffer,
+                tf2_cache_time=tf2_cache_time,
+                tf2_spin_thread=tf2_spin_thread,
+                tf2_qos=tf2_qos,
+                tf2_static_qos=tf2_static_qos,
+            )
             Robot._connection = self._conn
         else:
             self._conn = Robot._connection
