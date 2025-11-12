@@ -529,13 +529,34 @@ class MobileBase(robot.Item):
         """
         goal_handle = self._send_goal_future.result()
         get_result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(
-            self._node, get_result_future, timeout_sec=0.1)
+
+        # NOTE (Fujino):バックグラウンドで spin を実行した際のエラー回避
+        try:
+            rclpy.spin_until_future_complete(
+                self._node, get_result_future, timeout_sec=0.1)
+        except (IndexError, rclpy._rclpy_pybind11.RCLError) as e:
+            self._node.get_logger().warn(
+                f"Ignored internal ROS2 error in get_state(): {type(e).__name__}: {e}")
+            return action_msgs.GoalStatus.STATUS_EXECUTING
+        except Exception as e:
+            self._node.get_logger().error(
+                f"Unexpected error in get_state(): {type(e).__name__}: {e}")
+            return action_msgs.GoalStatus.STATUS_EXECUTING
+
         res = get_result_future.result()
         if res is None:
             return action_msgs.GoalStatus.STATUS_EXECUTING
         else:
             return res.status
+
+        # NOTE (Fujino): 元コード
+        # rclpy.spin_until_future_complete(
+        #     self._node, get_result_future, timeout_sec=0.1)
+        # res = get_result_future.result()
+        # if res is None:
+        #     return action_msgs.GoalStatus.STATUS_EXECUTING
+        # else:
+        #     return res.status
 
     def cancel_goal(self):
         """Cancel moving."""
