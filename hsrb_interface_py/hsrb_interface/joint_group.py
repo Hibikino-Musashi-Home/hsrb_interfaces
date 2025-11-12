@@ -1415,7 +1415,7 @@ class JointGroup(robot.Item):
 
         if sync:
             try:
-                trajectory.wait_controllers(self._whole_body._node, clients)
+                trajectory.wait_controllers(self._node, clients)
             except exceptions.FollowTrajectoryError as e:
                 self._node.get_logger().error(f"{e}")
                 return False

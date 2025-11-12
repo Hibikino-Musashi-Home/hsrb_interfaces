@@ -69,7 +69,7 @@ class TextToSpeech(robot.Item):
         topic = self._setting['topic']
         self._pub = self._node.create_publisher(Voice, topic, 0)
         self._language = TextToSpeech.JAPANESE
-        self._ac_talk_request = ActionClient(self._tts._node, TalkRequest, '/talk_request_action')
+        self._ac_talk_request = ActionClient(self._node, TalkRequest, '/talk_request_action')
 
     @property
     def language(self) -> int:
