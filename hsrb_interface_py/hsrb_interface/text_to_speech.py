@@ -31,6 +31,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import os
+
 import rclpy
 from rclpy.action import ActionClient
 
@@ -65,11 +67,16 @@ class TextToSpeech(robot.Item):
             name (str): A resource name
         """
         super(TextToSpeech, self).__init__()
+
+        self._robot_name = os.getenv("ROBOT_NAME", "hsrb")
+
         self._setting = settings.get_entry('text_to_speech', name)
         topic = self._setting['topic']
         self._pub = self._node.create_publisher(Voice, topic, 0)
         self._language = TextToSpeech.JAPANESE
-        self._ac_talk_request = ActionClient(self._node, TalkRequest, '/talk_request_action')
+
+        if not self._robot_name == "hsrc_ex":
+            self._ac_talk_request = ActionClient(self._node, TalkRequest, '/talk_request_action')
 
     @property
     def language(self) -> int:
@@ -98,21 +105,20 @@ class TextToSpeech(robot.Item):
         Returns:
             bool: True if success
         """
+        if not self._robot_name == "hsrc_ex":
+            if sync is True:
+                if not self._ac_talk_request.wait_for_server(timeout_sec=5.0):
+                    self._node.get_logger().error('TalkRequest action server not available.')
+                    return False
 
-        if sync is True:
-            if not self._ac_talk_request.wait_for_server(timeout_sec=5.0):
-                self._node.get_logger().error('TalkRequest action server not available.')
-                return False
+            goal_msg = TalkRequest.Goal()
+            goal_msg.data.interrupting = False
+            goal_msg.data.queueing = queue
+            goal_msg.data.language = self.language
+            goal_msg.data.sentence = text
 
-        goal_msg = TalkRequest.Goal()
-        goal_msg.data.interrupting = False
-        goal_msg.data.queueing = queue
-        goal_msg.data.language = self.language
-        goal_msg.data.sentence = text
-
-        future = self._ac_talk_request.send_goal_async(goal_msg)
-
-        rclpy.spin_until_future_complete(self._node, future)
+            future = self._ac_talk_request.send_goal_async(goal_msg)
+            rclpy.spin_until_future_complete(self._node, future)
 
         msg = Voice()
         msg.interrupting = False
