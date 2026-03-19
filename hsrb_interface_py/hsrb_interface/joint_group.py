@@ -24,6 +24,8 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 # DAMAGE.
 # vim: fileencoding=utf-8
+#
+# Maintainer: Tomoaki Fujino (Hibikino-Musashi@Home)
 """This module contains classes and functions to move joints."""
 
 from __future__ import absolute_import
@@ -31,13 +33,23 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from typing import (
+    List,
+    Tuple,
+    Union,
+)
 import math
 import sys
 import warnings
 
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import Pose as RosPose
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import (
+    TransformStamped,
+    Pose,
+    Quaternion,
+    Vector3,
+)
 from hsrb_interface_py._extension import KinematicsInterface
 from moveit_msgs.msg import MoveItErrorCodes
 
@@ -456,7 +468,13 @@ class JointGroup(robot.Item):
                 req.weight = [100.0]
         return req
 
-    def _change_joint_state(self, joint_names, joint_positions_seq, plan_only=False):
+    def _change_joint_state(
+        self,
+        joint_names,
+        joint_positions_seq,
+        plan_only=False,
+        sync=True
+    ) -> Union[JointTrajectory, bool]:
         """Move joints to specified joint state while checking self collision.
 
         Args:
@@ -466,9 +484,13 @@ class JointGroup(robot.Item):
                 A list of target position [m or rad].
             plan_only (bool):
                 Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
         Returns:
-            constrained_traj (trajectory_msgs.msg.JointTrajectory):
-                A planned trajectory
+            Union[trajectory_msgs.msg.JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
         Raises:
             ValueError: Some specified joints are not found.
             ValueError: Target joints include some uncontrollable joints.
@@ -516,9 +538,15 @@ class JointGroup(robot.Item):
         if plan_only:
             return constrained_traj
         else:
-            self._execute_trajectory(constrained_traj)
+            self._execute_trajectory(constrained_traj, sync)
 
-    def move_to_joint_positions_multiple_targets(self, joint_names, joint_positions_seq, plan_only=False):
+    def move_to_joint_positions_multiple_targets(
+        self,
+        joint_names: List[str],
+        joint_positions_seq: List[List[float]],
+        plan_only=False,
+        sync=True,
+    ) -> Union[JointTrajectory, bool]:
         """Move joints to goal positions with constraint.
 
         Args:
@@ -528,9 +556,13 @@ class JointGroup(robot.Item):
                 A list of target position [m or rad].
             plan_only (bool):
                 Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
         Returns:
-            constrained_traj (trajectory_msgs.msg.JointTrajectory):
-                A planned trajectory
+            Union[JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
         Raises:
             ValueError: Some specified joints are not found.
             ValueError: Target joints include some uncontrollable joints.
@@ -563,11 +595,17 @@ class JointGroup(robot.Item):
 
         """
         if not joint_names:
-            return
+            return False
 
-        return self._change_joint_state(joint_names, joint_positions_seq, plan_only)
+        return self._change_joint_state(joint_names, joint_positions_seq, plan_only, sync)
 
-    def move_to_joint_positions(self, goals={}, plan_only=False, **kwargs):
+    def move_to_joint_positions(
+        self,
+        goals={},
+        plan_only=False,
+        sync=True,
+        **kwargs,
+    ) -> Union[JointTrajectory, bool]:
         """Move joints to a specified goal positions.
 
         Args:
@@ -575,12 +613,16 @@ class JointGroup(robot.Item):
                 A dict of pair of joint name and target position [m or rad].
             plan_only (bool):
                 Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
             **kwargs:
                 Use keyword arguments to specify joint_name/posiion pairs.
                 The keyword arguments overwrite `goals` argument.
         Returns:
-            constrained_traj (trajectory_msgs.msg.JointTrajectory):
-                A planned trajectory
+            Union[trajectory_msgs.msg.JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
         See Also:
             :py:attr:`.joint_names`
         Examples:
@@ -607,16 +649,28 @@ class JointGroup(robot.Item):
             goals = {}
         goals.update(kwargs)
         if not goals:
-            return
+            return False
         joint_names = []
         joint_positions = []
         for k, v in goals.items():
             joint_names.append(k)
             joint_positions.append(v)
-        return self._change_joint_state(joint_names, [joint_positions], plan_only)
+        return self._change_joint_state(joint_names, [joint_positions], plan_only, sync)
 
-    def move_to_neutral(self, plan_only=False):
-        """Move joints to neutral(initial) pose of a robot."""
+    def move_to_neutral(self, plan_only=False, sync=True) -> Union[JointTrajectory, bool]:
+        """Move joints to neutral(initial) pose of a robot.
+
+        Args:
+            plan_only (bool):
+                Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
+        Returns:
+            Union[trajectory_msgs.msg.JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
+        """
         goals = {
             'arm_lift_joint': 0.0,
             'arm_flex_joint': 0.0,
@@ -626,10 +680,22 @@ class JointGroup(robot.Item):
             'head_pan_joint': 0.0,
             'head_tilt_joint': 0.0,
         }
-        return self.move_to_joint_positions(goals, plan_only)
+        return self.move_to_joint_positions(goals, plan_only, sync)
 
-    def move_to_go(self, plan_only=False):
-        """Move joints to a suitable pose for moving a mobile base."""
+    def move_to_go(self, plan_only=False, sync=True) -> Union[JointTrajectory, bool]:
+        """Move joints to a suitable pose for moving a mobile base.
+
+        Args:
+            plan_only (bool):
+                Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
+        Returns:
+            Union[trajectory_msgs.msg.JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
+        """
         goals = {
             'arm_flex_joint': 0.0,
             'arm_lift_joint': 0.0,
@@ -639,9 +705,9 @@ class JointGroup(robot.Item):
             'head_pan_joint': 0.0,
             'head_tilt_joint': 0.0
         }
-        return self.move_to_joint_positions(goals, plan_only)
+        return self.move_to_joint_positions(goals, plan_only, sync)
 
-    def execute(self, trajectory):
+    def execute(self, trajectory: JointTrajectory):
         """Execute a trajectory and not wait the result.
 
         Args:
@@ -669,7 +735,7 @@ class JointGroup(robot.Item):
         else:
             raise ValueError("Invalid goal.")
 
-    def is_succeeded(self):
+    def is_succeeded(self) -> bool:
         """Get the state as if the robot moving was succeeded.
 
         Returns:
@@ -686,7 +752,7 @@ class JointGroup(robot.Item):
             return
         trajectory.wait_controllers(self._node, self._current_clients)
 
-    def is_moving(self):
+    def is_moving(self) -> bool:
         """Get the state as if the robot is moving.
 
         Returns:
@@ -708,7 +774,7 @@ class JointGroup(robot.Item):
         """Get a pose of end effector based on robot frame.
 
         Returns:
-            Tuple[Vector3, Quaternion]
+            Tuple[Vector3, Quaternion]: Pose of End effector
         """
         # Default reference frame is a robot frame
         if ref_frame_id is None:
@@ -740,19 +806,29 @@ class JointGroup(robot.Item):
             odom_to_ref_ros.transform)
         return geometry.tuples_to_pose(odom_to_ref_tuples)
 
-    def move_end_effector_pose(self, pose, ref_frame_id=None, plan_only=False):
+    def move_end_effector_pose(
+        self,
+        pose: Union[Tuple[Vector3, Quaternion], List[Tuple[Vector3, Quaternion]]],
+        ref_frame_id=None,
+        plan_only=False,
+        sync=True,
+    ) -> Union[JointTrajectory, bool]:
         """Move an end effector to a given pose.
 
         Args
-            pose (geometry.Pose or list(geometry.Pose)):
+            pose (Union[geometory.Pose, List[geometory.Pose]]):
                 The target pose(s) of the end effector frame.
             ref_frame_id (str): A base frame of an end effector.
                 The default is the robot frame(```base_footprint``).
             plan_only (bool):
                 Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
         Returns:
-            constrained_traj (trajectory_msgs.msg.JointTrajectory):
-                A planned trajectory
+            Union[trajectory_msgs.msg.JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
         """
         # Default is the robot frame (the base frame)
         if ref_frame_id is None:
@@ -790,9 +866,16 @@ class JointGroup(robot.Item):
         if plan_only:
             return constrained_traj
         else:
-            self._execute_trajectory(constrained_traj)
+            self._execute_trajectory(constrained_traj, sync)
 
-    def move_end_effector_by_line(self, axis, distance, ref_frame_id=None, plan_only=False):
+    def move_end_effector_by_line(
+        self,
+        axis: Vector3,
+        distance: float,
+        ref_frame_id=None,
+        plan_only=False,
+        sync=True,
+    ) -> Union[JointTrajectory, bool]:
         """Move an end effector along with a line in a 3D space.
 
         Args:
@@ -803,9 +886,13 @@ class JointGroup(robot.Item):
                 ``axis`` is defined on this frame.
             plan_only (bool):
                 Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
         Returns:
-            constrained_traj (trajectory_msgs.msg.JointTrajectory):
-                A planned trajectory
+            Union[trajectory_msgs.msg.JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
         """
         axis_length = np.linalg.norm(np.array(axis, dtype='float64'))
         if axis_length < sys.float_info.epsilon:
@@ -844,9 +931,16 @@ class JointGroup(robot.Item):
         if plan_only:
             return constrained_traj
         else:
-            self._execute_trajectory(constrained_traj)
+            self._execute_trajectory(constrained_traj, sync)
 
-    def move_end_effector_by_arc(self, center, angle, ref_frame_id=None, plan_only=False):
+    def move_end_effector_by_arc(
+        self,
+        center: Tuple[Vector3, Quaternion],
+        angle: float,
+        ref_frame_id=None,
+        plan_only=False,
+        sync=True,
+    ) -> Union[JointTrajectory, bool]:
         """Move an end effector along with an arc in a 3D space.
 
         Args:
@@ -857,9 +951,13 @@ class JointGroup(robot.Item):
                 The default is the robot frame(```base_footprint``).
             plan_only (bool):
                 Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
         Returns:
-            constrained_traj (trajectory_msgs.msg.JointTrajectory):
-                A planned trajectory
+            Union[trajectory_msgs.msg.JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
         """
         # Check angle value
         if not -math.pi < angle < math.pi:
@@ -915,12 +1013,12 @@ class JointGroup(robot.Item):
         if plan_only:
             return constrained_traj
         else:
-            self._execute_trajectory(constrained_traj)
+            self._execute_trajectory(constrained_traj, sync)
 
     def _plan_cartesian_path(self, origin_to_pose1, origin_to_pose2,
                              odom_to_robot_pose,
                              initial_joint_state,
-                             collision_env):
+                             collision_env) -> PlanWithTsrConstraints.Response:
         req = self._generate_planning_request(PlanWithTsrConstraints.Request)
         req.origin_to_basejoint = odom_to_robot_pose
         req.initial_joint_state = initial_joint_state
@@ -1053,13 +1151,19 @@ class JointGroup(robot.Item):
             PlanWithTsrConstraints, service_name)
         future = plan_service.call_async(req)
         rclpy.spin_until_future_complete(self._node, future)
-        res = future.result()
+        res: PlanWithTsrConstraints.Response = future.result()
         if res.error_code.val != MoveItErrorCodes.SUCCESS:
             msg = "Fail to plan"
             raise exceptions.MotionPlanningError(msg, res.error_code)
         return res
 
-    def move_cartesian_path(self, waypoints, ref_frame_id=None, plan_only=False):
+    def move_cartesian_path(
+        self,
+        waypoints: List[Pose],
+        ref_frame_id=None,
+        plan_only=False,
+        sync=True,
+    ) -> Union[JointTrajectory, bool]:
         """Move the end-effector along a path that follows specified waypoints.
 
         Args:
@@ -1068,9 +1172,13 @@ class JointGroup(robot.Item):
                 The base frame of waypoints (default is the robot frame)
             plan_only (bool):
                 Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
         Returns:
-            constrained_traj (trajectory_msgs.msg.JointTrajectory):
-                A planned trajectory
+            Union[trajectory_msgs.msg.JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
         """
         if ref_frame_id is None:
             ref_frame_id = settings.get_frame('base')
@@ -1122,9 +1230,15 @@ class JointGroup(robot.Item):
         if plan_only:
             return constrained_traj
         else:
-            self._execute_trajectory(constrained_traj)
+            self._execute_trajectory(constrained_traj, sync)
 
-    def gaze_point(self, point=geometry.vector3(), ref_frame_id=None, plan_only=False):
+    def gaze_point(
+        self,
+        point=geometry.vector3(),
+        ref_frame_id=None,
+        plan_only=False,
+        sync=True,
+    ) -> Union[JointTrajectory, bool]:
         """Point the rgbd sensor at given place.
 
         Args:
@@ -1133,9 +1247,13 @@ class JointGroup(robot.Item):
                 The default is the robot frame(```base_footprint``).
             plan_only (bool):
                 Not execute the trajectory when this arg is ``True``
+            sync (bool):
+                Not wait the result when this arg is ``False``
         Returns:
-            constrained_traj (trajectory_msgs.msg.JointTrajectory):
-                A planned trajectory
+            Union[trajectory_msgs.msg.JointTrajectory, bool]:
+                If plan_only is ``False`` and sync is ``True``, return a boolean (``True`` if success).
+                If plan_only is ``False`` and sync is ``False``, return a boolean (``True`` if success).
+                If plan_only is ``True``, return the planned trajectory.
         Notes:
             If the calculated angle is over the limit, the angle is rounded.
         """
@@ -1229,10 +1347,10 @@ class JointGroup(robot.Item):
             request.weight.extend(self._joint_weights.values())
             return request
 
-    def _constrain_trajectories(self, joint_trajectory, base_trajectory=None):
+    def _constrain_trajectories(self, joint_trajectory, base_trajectory=None) -> JointTrajectory:
         """Apply constraints to given trajectories.
 
-        Parameters:
+        Args:
             joint_trajectory (trajectory_msgs.msg.JointTrajectory):
                 A upper body trajectory
             base_trajectory (trajectory_msgs.msg.JointTrajectory):
@@ -1265,17 +1383,17 @@ class JointGroup(robot.Item):
                 merged_traj, start_state, self._node)
         return filtered_merged_traj
 
-    def _execute_trajectory(self, joint_traj, sync=True):
+    def _execute_trajectory(self, joint_traj: JointTrajectory, sync=True) -> bool:
         """Execute a trajectory with given action clients.
 
         Action clients that actually execute trajectories are selected
         automatically.
 
-        Parameters:
+        Args:
             joint_traj (trajectory_msgs.msg.JointTrajectory):
                 A trajectory to be executed
         Returns:
-            None
+            bool: True if the trajectory execution succeeded, False if it failed.
         """
         clients = []
         # TODO() : impedance_clientをサポートする。
@@ -1296,4 +1414,10 @@ class JointGroup(robot.Item):
             client.submit(traj)
 
         if sync:
-            trajectory.wait_controllers(self._node, clients)
+            try:
+                trajectory.wait_controllers(self._node, clients)
+            except exceptions.FollowTrajectoryError as e:
+                self._node.get_logger().error(f"{e}")
+                return False
+
+        return True

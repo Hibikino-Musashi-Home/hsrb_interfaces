@@ -200,7 +200,7 @@ def get_transform(node, tf2_buffer, target_frame, source_frame, timeout=None):
     tf_future = tf2_buffer.wait_for_transform_async(
         target_frame=target_frame,
         source_frame=source_frame,
-        time=node.get_clock().now()
+        time=rclpy.time.Time()
     )
 
     wait_until_complete(node, tf_future, timeout)
