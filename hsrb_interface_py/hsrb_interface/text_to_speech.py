@@ -32,6 +32,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import rclpy
+from action_msgs.msg import GoalStatus
 from rclpy.node import Node
 from rclpy.action import ActionClient
 
@@ -97,8 +98,8 @@ class TextToSpeech(robot.Item):
                 If True, the speech request is queued instead of interrupting
                     the current one. Default is ``False``.
             sync (bool):
-                If True, wait for the TalkRequest action server to become
-                    available before sending the goal. Default is ``True``.
+                If True, wait until the speech request finishes playing.
+                    Default is ``True``.
 
         Returns:
             bool: True if success
@@ -117,8 +118,24 @@ class TextToSpeech(robot.Item):
             future = self._ac_talk_request.send_goal_async(goal_msg)
             rclpy.spin_until_future_complete(self._node, future)
 
-            result_future = future.result().get_result_async()
+            goal_handle = future.result()
+            if goal_handle is None or not goal_handle.accepted:
+                self._node.get_logger().error("TalkRequest goal was rejected.")
+                return False
+
+            result_future = goal_handle.get_result_async()
             rclpy.spin_until_future_complete(self._node, result_future)
+
+            result = result_future.result()
+            if result is None:
+                self._node.get_logger().error("TalkRequest action returned no result.")
+                return False
+
+            if result.status != GoalStatus.STATUS_SUCCEEDED:
+                self._node.get_logger().error(
+                    "TalkRequest action failed with status %d." % result.status
+                )
+                return False
 
             return True
         else:
