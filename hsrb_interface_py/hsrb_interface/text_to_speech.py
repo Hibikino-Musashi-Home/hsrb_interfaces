@@ -116,6 +116,10 @@ class TextToSpeech(robot.Item):
 
             future = self._ac_talk_request.send_goal_async(goal_msg)
             rclpy.spin_until_future_complete(self._node, future)
+
+            result_future = future.result().get_result_async()
+            rclpy.spin_until_future_complete(self._node, result_future)
+
             return True
         else:
             msg = Voice()
