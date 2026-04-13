@@ -31,7 +31,9 @@ ament_target_dependencies(${PROJECT_NAME}_extension hsr_kinematics Boost rclcpp
 ament_python_install_package(hsrb_interface)
 
 # Install python scripts
-install(PROGRAMS scripts/ihsrb.py
+install(PROGRAMS
+        scripts/ihsrb.py
+        scripts/test_tts.py
         DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS ${PROJECT_NAME}_extension
