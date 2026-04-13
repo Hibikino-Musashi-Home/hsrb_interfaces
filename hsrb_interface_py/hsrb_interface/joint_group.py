@@ -697,7 +697,8 @@ class JointGroup(robot.Item):
                 If plan_only is ``True``, return the planned trajectory.
         """
         goals = {
-            'arm_flex_joint': 0.0,
+            # 'arm_flex_joint': 0.0, # Original
+            'arm_flex_joint': -0.26, # for pumas nav
             'arm_lift_joint': 0.0,
             'arm_roll_joint': -1.57,
             'wrist_flex_joint': -1.57,
