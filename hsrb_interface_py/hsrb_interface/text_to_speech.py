@@ -31,10 +31,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import os
-
 import rclpy
+from action_msgs.msg import GoalStatus
+from rclpy.node import Node
 from rclpy.action import ActionClient
+
 
 from tmc_voice_msgs.msg import Voice
 from tmc_voice_msgs.action import TalkRequest
@@ -68,15 +69,13 @@ class TextToSpeech(robot.Item):
         """
         super(TextToSpeech, self).__init__()
 
-        self._robot_name = os.getenv("ROBOT_NAME", "hsrb")
-
-        self._setting = settings.get_entry('text_to_speech', name)
-        topic = self._setting['topic']
-        self._pub = self._node.create_publisher(Voice, topic, 0)
+        self._setting = settings.get_entry("text_to_speech", name)
+        topic = self._setting["topic"]
         self._language = TextToSpeech.JAPANESE
 
-        if not self._robot_name == "hsrc_ex":
-            self._ac_talk_request = ActionClient(self._node, TalkRequest, '/talk_request_action')
+        self._node: Node  # type hint
+        self._pub = self._node.create_publisher(Voice, topic, 0)
+        self._ac_talk_request = ActionClient(self._node, TalkRequest, "talk_request_action")
 
     @property
     def language(self) -> int:
@@ -86,7 +85,7 @@ class TextToSpeech(robot.Item):
     @language.setter
     def language(self, value):
         if value not in (Voice.JAPANESE, Voice.ENGLISH):
-            msg = 'Language code {0} is not supported'.format(value)
+            msg = "Language code {0} is not supported".format(value)
             raise exceptions.InvalidLanguageError(msg)
         self._language = value
 
@@ -99,17 +98,16 @@ class TextToSpeech(robot.Item):
                 If True, the speech request is queued instead of interrupting
                     the current one. Default is ``False``.
             sync (bool):
-                If True, wait for the TalkRequest action server to become
-                    available before sending the goal. Default is ``True``.
+                If True, wait until the speech request finishes playing.
+                    Default is ``True``.
 
         Returns:
             bool: True if success
         """
-        if not self._robot_name == "hsrc_ex":
-            if sync is True:
-                if not self._ac_talk_request.wait_for_server(timeout_sec=5.0):
-                    self._node.get_logger().error('TalkRequest action server not available.')
-                    return False
+        if sync is True:
+            if not self._ac_talk_request.wait_for_server(timeout_sec=5.0):
+                self._node.get_logger().error("TalkRequest action server not available.")
+                return False
 
             goal_msg = TalkRequest.Goal()
             goal_msg.data.interrupting = False
@@ -120,11 +118,31 @@ class TextToSpeech(robot.Item):
             future = self._ac_talk_request.send_goal_async(goal_msg)
             rclpy.spin_until_future_complete(self._node, future)
 
-        msg = Voice()
-        msg.interrupting = False
-        msg.queueing = queue
-        msg.language = self._language
-        msg.sentence = text
-        self._pub.publish(msg)
+            goal_handle = future.result()
+            if goal_handle is None or not goal_handle.accepted:
+                self._node.get_logger().error("TalkRequest goal was rejected.")
+                return False
 
-        return True
+            result_future = goal_handle.get_result_async()
+            rclpy.spin_until_future_complete(self._node, result_future)
+
+            result = result_future.result()
+            if result is None:
+                self._node.get_logger().error("TalkRequest action returned no result.")
+                return False
+
+            if result.status != GoalStatus.STATUS_SUCCEEDED:
+                self._node.get_logger().error(
+                    "TalkRequest action failed with status %d." % result.status
+                )
+                return False
+
+            return True
+        else:
+            msg = Voice()
+            msg.interrupting = False
+            msg.queueing = queue
+            msg.language = self._language
+            msg.sentence = text
+            self._pub.publish(msg)
+            return True

@@ -31,7 +31,9 @@ ament_target_dependencies(${PROJECT_NAME}_extension hsr_kinematics Boost rclcpp
 ament_python_install_package(hsrb_interface)
 
 # Install python scripts
-install(PROGRAMS scripts/ihsrb.py
+install(PROGRAMS
+        scripts/ihsrb.py
+        scripts/test_tts.py
         DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS ${PROJECT_NAME}_extension
@@ -49,7 +51,8 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_utils test/test_utils.py)
   ament_add_pytest_test(test_whole_body test/test_whole_body.py)
   ament_add_pytest_test(test_collision_world test/test_collision_world.py)
-  
+  ament_add_pytest_test(test_omni_base test/test_omni_base.py)
+
 endif()
 
 ament_export_include_directories(include)
