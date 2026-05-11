@@ -932,7 +932,7 @@ class JointGroup(robot.Item):
         if plan_only:
             return constrained_traj
         else:
-            self._execute_trajectory(constrained_traj, sync)
+            return self._execute_trajectory(constrained_traj, sync)
 
     def move_end_effector_by_arc(
         self,
