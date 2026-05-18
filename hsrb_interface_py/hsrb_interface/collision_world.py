@@ -172,6 +172,7 @@ class CollisionWorld(robot.Item):
         return mesh_msg
 
     def _wait_object_id_used(self, id, timeout=1.0):
+        start = self._node.get_clock().now()
         timeout_sec = timeout
         while rclpy.ok() and timeout_sec > 0.0:
             rclpy.spin_once(self._node)
@@ -183,6 +184,7 @@ class CollisionWorld(robot.Item):
             timeout_sec -= 0.01
 
     def _wait_object_id_attached(self, id, timeout=1.0):
+        start = self._node.get_clock().now()
         timeout_sec = timeout
         while rclpy.ok() and timeout_sec > 0.0:
             rclpy.spin_once(self._node)
