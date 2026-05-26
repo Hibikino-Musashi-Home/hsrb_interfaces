@@ -932,7 +932,7 @@ class JointGroup(robot.Item):
         if plan_only:
             return constrained_traj
         else:
-            self._execute_trajectory(constrained_traj, sync)
+            return self._execute_trajectory(constrained_traj, sync)
 
     def move_end_effector_by_arc(
         self,
@@ -1382,7 +1382,7 @@ class JointGroup(robot.Item):
                     odom_base_trajectory.points[0].positions
             filtered_merged_traj = trajectory.hsr_timeopt_filter(
                 merged_traj, start_state, self._node)
-        return filtered_merged_traj
+        return filtered_merged_traj if filtered_merged_traj is not None else merged_traj
 
     def _execute_trajectory(self, joint_traj: JointTrajectory, sync=True) -> bool:
         """Execute a trajectory with given action clients.
